@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+.vite/
+
+# Electron packaging
+.webpack/
+release/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Runtime data
+SelfMediaWorkbench/
+*.db
+*.db-shm
+*.db-wal
+logs/
+backups/
+temp/
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
+
