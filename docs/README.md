@@ -30,6 +30,7 @@
 | 运维 | [日志与故障排查](./07-operations/logging-and-troubleshooting.md) | 草案 |
 | 运维 | [备份与恢复](./07-operations/backup-and-restore.md) | 草案 |
 | 管理 | [里程碑](./08-management/roadmap.md) | 待规划 |
+| 管理 | [当前开发状态](./08-management/current-status.md) | 持续维护 |
 | 管理 | [风险清单](./08-management/risk-register.md) | 草案 |
 | 管理 | [决策记录](./decision-log.md) | 持续维护 |
 
