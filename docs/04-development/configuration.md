@@ -13,4 +13,14 @@
 
 业务数据目录固定包含 `workspace.json`、`database`、`images`、`logs`、`backups` 和 `temp`。
 
-配置结构和默认值待技术选型后确定。
+操作系统应用数据目录中的 `startup-config.json` 只保存工作区绝对路径：
+
+```json
+{
+  "workspacePath": "D:\\Content\\SelfMediaWorkbench"
+}
+```
+
+`workspace.json` 保存 UUID 工作区标识、格式版本和创建时间。当前格式版本为 `1`。
+
+启动时只验证已配置工作区，不自动补建缺失目录；目录不存在、不可读写、标识无效或格式版本不兼容时进入阻断式恢复页。

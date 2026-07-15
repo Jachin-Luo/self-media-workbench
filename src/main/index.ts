@@ -1,6 +1,8 @@
 import path from 'node:path';
 import { app, BrowserWindow } from 'electron';
 import { registerAppInfoHandler } from './ipc/register-app-info';
+import { registerWorkspaceHandlers } from './ipc/register-workspace';
+import { WorkspaceService } from './workspace/workspace-service';
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
@@ -43,6 +45,9 @@ app.on('second-instance', () => {
 
 app.whenReady().then(() => {
   registerAppInfoHandler();
+  registerWorkspaceHandlers(
+    new WorkspaceService(path.join(app.getPath('userData'), 'startup-config.json')),
+  );
   createMainWindow();
 
   app.on('activate', () => {
@@ -53,4 +58,3 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   app.quit();
 });
-
