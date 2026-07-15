@@ -1,18 +1,25 @@
 import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import type { AiConfigStatus, AiConnectionTestResult } from '../../shared/ai/schema';
 import type { AppInfo } from '../../shared/ipc/app-info';
 import type { WorkspaceStatus } from '../../shared/workspace/schema';
+import { AiSetup } from './AiSetup';
 
 export function App() {
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceStatus | null>(null);
+  const [aiConfig, setAiConfig] = useState<AiConfigStatus | null>(null);
+  const [lastAiTest, setLastAiTest] = useState<AiConnectionTestResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([window.desktopApi.getAppInfo(), window.desktopApi.getWorkspaceStatus()])
-      .then(([nextAppInfo, nextWorkspace]) => {
+      .then(async ([nextAppInfo, nextWorkspace]) => {
         setAppInfo(nextAppInfo);
         setWorkspace(nextWorkspace);
+        if (nextWorkspace.status === 'ready') {
+          setAiConfig(await window.desktopApi.getAiConfigStatus());
+        }
       })
       .catch((reason: unknown) => {
         setError(reason instanceof Error ? reason.message : '应用初始化失败');
@@ -25,7 +32,12 @@ export function App() {
 
     try {
       const result = await window.desktopApi.selectWorkspace();
-      if (result.status === 'selected') setWorkspace(result.workspace);
+      if (result.status === 'selected') {
+        setWorkspace(result.workspace);
+        setAiConfig(
+          result.workspace.status === 'ready' ? await window.desktopApi.getAiConfigStatus() : null,
+        );
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '选择工作区失败');
     } finally {
@@ -38,7 +50,11 @@ export function App() {
     setError(null);
 
     try {
-      setWorkspace(await window.desktopApi.retryWorkspace());
+      const nextWorkspace = await window.desktopApi.retryWorkspace();
+      setWorkspace(nextWorkspace);
+      setAiConfig(
+        nextWorkspace.status === 'ready' ? await window.desktopApi.getAiConfigStatus() : null,
+      );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '重新验证工作区失败');
     } finally {
@@ -102,24 +118,62 @@ export function App() {
     );
   }
 
+  if (!aiConfig) {
+    return (
+      <PageShell>
+        <div className="py-16 text-center">
+          <p className="text-sm text-slate-500">正在读取 AI 配置…</p>
+          {error ? <ErrorMessage message={error} /> : null}
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (aiConfig.setupState === 'unconfigured') {
+    return (
+      <PageShell>
+        <AiSetup
+          initialConfig={aiConfig.config}
+          onComplete={(status, result) => {
+            setAiConfig(status);
+            setLastAiTest(result ?? null);
+          }}
+        />
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell>
       <div className="flex items-start justify-between gap-6">
         <div>
           <StepLabel tone="success">工作区已就绪</StepLabel>
           <h1 className="mt-3 text-3xl font-bold tracking-tight">自媒体工作台</h1>
-          <p className="mt-3 text-sm text-slate-500">首次启动目录链路已完成。</p>
+          <p className="mt-3 text-sm text-slate-500">首次启动配置已完成。</p>
         </div>
         <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-indigo-600 text-2xl font-bold text-white">
           自
         </div>
       </div>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-3">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatusCard label="运行环境" value={appInfo?.platform ?? '未知'} />
         <StatusCard label="应用版本" value={appInfo?.version ?? '未知'} />
         <StatusCard label="工作区格式" value={`v${workspace.marker.formatVersion}`} />
+        <StatusCard
+          label="AI 模型"
+          value={aiConfig.setupState === 'configured' ? aiConfig.config.model : '暂未配置'}
+        />
       </div>
+
+      {lastAiTest?.ok ? (
+        <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          <p className="font-semibold">AI 连接测试成功</p>
+          <p className="mt-1">
+            响应：{lastAiTest.responseText} · {lastAiTest.latencyMs} ms · {lastAiTest.usage.totalTokens} Token
+          </p>
+        </div>
+      ) : null}
 
       <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
         <p className="text-xs font-medium text-slate-500">业务数据目录</p>

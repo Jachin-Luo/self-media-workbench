@@ -15,6 +15,8 @@
 - 建立 Electron 正式工程及类型安全的 Main、Preload、Renderer、Shared 分层。
 - 实现首次启动工作区选择、目录初始化、路径持久化和启动验证链路。
 - 新增工作区异常恢复页，支持重新选择、重试和退出。
+- 实现首次启动 AI 配置、最小模型连接测试和跳过流程。
+- 使用 Electron safeStorage 加密保存 API Key，普通 AI 配置保存在工作区。
 
 ### Changed
 

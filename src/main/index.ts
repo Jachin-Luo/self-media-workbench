@@ -1,5 +1,8 @@
 import path from 'node:path';
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, safeStorage } from 'electron';
+import { AiConfigService } from './ai/ai-config-service';
+import { EncryptedCredentialStore } from './ai/credential-store';
+import { registerAiConfigHandlers } from './ipc/register-ai-config';
 import { registerAppInfoHandler } from './ipc/register-app-info';
 import { registerWorkspaceHandlers } from './ipc/register-workspace';
 import { WorkspaceService } from './workspace/workspace-service';
@@ -44,10 +47,16 @@ app.on('second-instance', () => {
 });
 
 app.whenReady().then(() => {
-  registerAppInfoHandler();
-  registerWorkspaceHandlers(
-    new WorkspaceService(path.join(app.getPath('userData'), 'startup-config.json')),
+  const userDataPath = app.getPath('userData');
+  const workspaceService = new WorkspaceService(path.join(userDataPath, 'startup-config.json'));
+  const credentialStore = new EncryptedCredentialStore(
+    path.join(userDataPath, 'credentials', 'ai-api-key.bin'),
+    safeStorage,
   );
+
+  registerAppInfoHandler();
+  registerWorkspaceHandlers(workspaceService);
+  registerAiConfigHandlers(new AiConfigService(workspaceService, credentialStore));
   createMainWindow();
 
   app.on('activate', () => {

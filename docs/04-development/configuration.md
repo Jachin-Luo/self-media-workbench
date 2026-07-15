@@ -24,3 +24,7 @@
 `workspace.json` 保存 UUID 工作区标识、格式版本和创建时间。当前格式版本为 `1`。
 
 启动时只验证已配置工作区，不自动补建缺失目录；目录不存在、不可读写、标识无效或格式版本不兼容时进入阻断式恢复页。
+
+AI 普通配置写入工作区 `settings/ai-config.json`，包含 Base URL、模型名、上下文窗口和最大输出 Token。默认值为 32,000 和 8,000 Token。
+
+API Key 通过 Electron `safeStorage` 加密，密文单独写入操作系统应用数据目录的 `credentials/ai-api-key.bin`，不进入工作区、普通配置或备份。

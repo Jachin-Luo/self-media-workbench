@@ -1,4 +1,16 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import {
+  aiConfigStatusSchema,
+  aiConnectionInputSchema,
+  aiConnectionTestResultSchema,
+  aiGetConfigStatusChannel,
+  aiSaveConfigChannel,
+  aiSkipSetupChannel,
+  aiTestConnectionChannel,
+  type AiConfigStatus,
+  type AiConnectionInput,
+  type AiConnectionTestResult,
+} from '../shared/ai/schema';
 import { appInfoChannel, appInfoSchema, type AppInfo } from '../shared/ipc/app-info';
 import {
   workspaceGetStatusChannel,
@@ -17,6 +29,10 @@ export interface DesktopApi {
   selectWorkspace(): Promise<WorkspaceSelectionResult>;
   retryWorkspace(): Promise<WorkspaceStatus>;
   quitApp(): void;
+  getAiConfigStatus(): Promise<AiConfigStatus>;
+  testAiConnection(input: AiConnectionInput): Promise<AiConnectionTestResult>;
+  saveAiConfig(input: AiConnectionInput): Promise<AiConfigStatus>;
+  skipAiSetup(): Promise<AiConfigStatus>;
 }
 
 const desktopApi: DesktopApi = {
@@ -38,6 +54,28 @@ const desktopApi: DesktopApi = {
   },
   quitApp() {
     ipcRenderer.send(workspaceQuitChannel);
+  },
+  async getAiConfigStatus() {
+    const result: unknown = await ipcRenderer.invoke(aiGetConfigStatusChannel);
+    return aiConfigStatusSchema.parse(result);
+  },
+  async testAiConnection(input) {
+    const result: unknown = await ipcRenderer.invoke(
+      aiTestConnectionChannel,
+      aiConnectionInputSchema.parse(input),
+    );
+    return aiConnectionTestResultSchema.parse(result);
+  },
+  async saveAiConfig(input) {
+    const result: unknown = await ipcRenderer.invoke(
+      aiSaveConfigChannel,
+      aiConnectionInputSchema.parse(input),
+    );
+    return aiConfigStatusSchema.parse(result);
+  },
+  async skipAiSetup() {
+    const result: unknown = await ipcRenderer.invoke(aiSkipSetupChannel);
+    return aiConfigStatusSchema.parse(result);
   },
 };
 
