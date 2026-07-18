@@ -98,7 +98,14 @@ describe('AiConfigService', () => {
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),
     );
-    const service = new AiConfigService(workspaceService, credentialStore, fetchMock);
+    const callRecorder = { record: vi.fn() };
+    const service = new AiConfigService(
+      workspaceService,
+      credentialStore,
+      fetchMock,
+      15_000,
+      callRecorder,
+    );
 
     await expect(service.testConnection(testInput)).resolves.toMatchObject({
       ok: true,
@@ -114,6 +121,16 @@ describe('AiConfigService', () => {
       model: testInput.model,
       messages: [{ role: 'user', content: 'Reply with OK.' }],
     });
+    expect(callRecorder.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        feature: 'connection-test',
+        model: testInput.model,
+        inputTokens: 5,
+        outputTokens: 1,
+        totalTokens: 6,
+        status: 'success',
+      }),
+    );
   });
 
   it('returns provider error messages without persisting the failed configuration', async () => {

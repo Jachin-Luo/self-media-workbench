@@ -1,3 +1,5 @@
+import { spawn } from 'node:child_process';
+import path from 'node:path';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
@@ -10,8 +12,31 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     executableName: 'self-media-workbench',
+    ignore: (filePath) => {
+      if (!filePath) return false;
+      const includedPaths = [
+        '/.vite',
+        '/drizzle',
+        '/node_modules/better-sqlite3',
+        '/node_modules/bindings',
+        '/node_modules/file-uri-to-path',
+      ];
+      return !includedPaths.some(
+        (includedPath) =>
+          filePath === includedPath ||
+          filePath.startsWith(`${includedPath}/`) ||
+          includedPath.startsWith(`${filePath}/`),
+      );
+    },
   },
-  rebuildConfig: {},
+  rebuildConfig: {
+    ignoreModules: ['better-sqlite3'],
+  },
+  hooks: {
+    packageAfterCopy: async (_forgeConfig, buildPath, electronVersion, platform, arch) => {
+      await installBetterSqlitePrebuild(buildPath, electronVersion, platform, arch);
+    },
+  },
   makers: [new MakerSquirrel({}), new MakerZIP({}, ['win32', 'darwin'])],
   plugins: [
     new AutoUnpackNativesPlugin({}),
@@ -34,5 +59,39 @@ const config: ForgeConfig = {
   ],
 };
 
-export default config;
+function installBetterSqlitePrebuild(
+  buildPath: string,
+  electronVersion: string,
+  platform: string,
+  arch: string,
+): Promise<void> {
+  const prebuildInstall = path.resolve('node_modules', 'prebuild-install', 'bin.js');
+  const modulePath = path.join(buildPath, 'node_modules', 'better-sqlite3');
 
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      process.execPath,
+      [
+        prebuildInstall,
+        '--runtime',
+        'electron',
+        '--target',
+        electronVersion,
+        '--platform',
+        platform,
+        '--arch',
+        arch,
+        '--force',
+      ],
+      { cwd: modulePath, stdio: 'inherit' },
+    );
+
+    child.once('error', reject);
+    child.once('exit', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`better-sqlite3 预编译包安装失败，退出码：${code ?? 'unknown'}`));
+    });
+  });
+}
+
+export default config;

@@ -17,6 +17,9 @@
 - 新增工作区异常恢复页，支持重新选择、重试和退出。
 - 实现首次启动 AI 配置、最小模型连接测试和跳过流程。
 - 使用 Electron safeStorage 加密保存 API Key，普通 AI 配置保存在工作区。
+- 接入 better-sqlite3、Drizzle ORM、编号迁移、WAL 和外键配置。
+- 新增应用配置、操作日志、错误日志、AI 调用和每日 Token 统计基础表。
+- AI 连接测试用量开始写入 AI 调用记录和按 Asia/Hong_Kong 汇总的每日 Token 统计。
 
 ### Changed
 

@@ -20,6 +20,22 @@ interface WorkspaceStatusReader {
   getStatus(): Promise<WorkspaceStatus>;
 }
 
+export interface AiCallRecorderInput {
+  feature: string;
+  model: string;
+  durationMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  status: 'success' | 'failed';
+  errorCode?: string;
+  createdAt: string;
+}
+
+export interface AiCallRecorder {
+  record(input: AiCallRecorderInput): void | Promise<void>;
+}
+
 const storedAiConfigSchema = z.discriminatedUnion('setupState', [
   z.object({ setupState: z.literal('skipped') }),
   z.object({
@@ -52,6 +68,7 @@ export class AiConfigService {
     private readonly credentialStore: EncryptedCredentialStore,
     private readonly fetchImplementation: typeof fetch = fetch,
     private readonly timeoutMs = 15_000,
+    private readonly callRecorder?: AiCallRecorder,
   ) {}
 
   async getStatus(): Promise<AiConfigStatus> {
@@ -139,27 +156,27 @@ export class AiConfigService {
       const responseBody = parseUnknownJson(rawBody);
 
       if (!response.ok) {
-        return aiConnectionTestResultSchema.parse({
+        return this.recordConnectionTest(parsedInput, aiConnectionTestResultSchema.parse({
           ok: false,
           message: extractErrorMessage(responseBody, response.status),
           latencyMs,
           statusCode: response.status,
-        });
+        }), `http-${response.status}`);
       }
 
       const completion = chatCompletionResponseSchema.safeParse(responseBody);
       if (!completion.success) {
-        return {
+        return this.recordConnectionTest(parsedInput, {
           ok: false,
           message: '接口返回成功，但响应格式不是兼容的 Chat Completions 结构。',
           latencyMs,
-        };
+        }, 'invalid-response');
       }
 
       const inputTokens = completion.data.usage?.prompt_tokens ?? 0;
       const outputTokens = completion.data.usage?.completion_tokens ?? 0;
 
-      return aiConnectionTestResultSchema.parse({
+      return this.recordConnectionTest(parsedInput, aiConnectionTestResultSchema.parse({
         ok: true,
         responseText: extractResponseText(completion.data.choices[0]) || '连接成功',
         latencyMs,
@@ -168,16 +185,40 @@ export class AiConfigService {
           outputTokens,
           totalTokens: completion.data.usage?.total_tokens ?? inputTokens + outputTokens,
         },
-      });
+      }));
     } catch (error) {
-      return {
+      const timedOut = error instanceof Error && error.name === 'AbortError';
+      return this.recordConnectionTest(parsedInput, {
         ok: false,
-        message: error instanceof Error && error.name === 'AbortError' ? '连接超时。' : '无法连接到 AI 接口。',
+        message: timedOut ? '连接超时。' : '无法连接到 AI 接口。',
         latencyMs: Date.now() - startedAt,
-      };
+      }, timedOut ? 'timeout' : 'network-error');
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  private async recordConnectionTest(
+    input: AiConnectionInput,
+    result: AiConnectionTestResult,
+    errorCode?: string,
+  ): Promise<AiConnectionTestResult> {
+    try {
+      await this.callRecorder?.record({
+        feature: 'connection-test',
+        model: input.model,
+        durationMs: result.latencyMs,
+        inputTokens: result.ok ? result.usage.inputTokens : 0,
+        outputTokens: result.ok ? result.usage.outputTokens : 0,
+        totalTokens: result.ok ? result.usage.totalTokens : 0,
+        status: result.ok ? 'success' : 'failed',
+        errorCode,
+        createdAt: new Date().toISOString(),
+      });
+    } catch {
+      // A statistics write failure must not replace the connection result.
+    }
+    return result;
   }
 
   private async getConfigPath(): Promise<string> {

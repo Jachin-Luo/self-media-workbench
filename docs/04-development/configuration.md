@@ -11,6 +11,8 @@
 
 数据库采用 SQLite WAL 模式；better-sqlite3 原生模块由 Electron Forge 自动解包配置处理。
 
+主数据库固定为工作区 `database/app.db`。启动时启用 `foreign_keys`、`busy_timeout = 5000`、`synchronous = NORMAL` 和 WAL，然后自动执行 `drizzle/` 中尚未应用的编号迁移。
+
 业务数据目录固定包含 `workspace.json`、`database`、`images`、`logs`、`backups` 和 `temp`。
 
 操作系统应用数据目录中的 `startup-config.json` 只保存工作区绝对路径：

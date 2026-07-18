@@ -1,7 +1,7 @@
 # 数据模型
 
-> 状态：首版草案  
-> 最近更新：2026-07-12
+> 状态：首批基础表已实现
+> 最近更新：2026-07-18
 
 ## 1. 存储原则
 
@@ -88,6 +88,8 @@
 | `error_logs` | 错误及堆栈 | module、error_code、message、stack、created_at |
 
 API Key 不进入数据库，使用 Electron safeStorage 加密后单独保存。
+
+首批迁移已落地 `app_settings`、`operation_logs`、`error_logs`、`ai_calls` 和 `daily_token_usage`。其余业务表随对应纵向功能开发继续补充。
 
 ## 3. 主要关系
 

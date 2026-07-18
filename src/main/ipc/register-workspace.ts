@@ -9,7 +9,10 @@ import {
 } from '../../shared/workspace/schema';
 import type { WorkspaceService } from '../workspace/workspace-service';
 
-export function registerWorkspaceHandlers(workspaceService: WorkspaceService): void {
+export function registerWorkspaceHandlers(
+  workspaceService: WorkspaceService,
+  onWorkspaceReady?: (rootPath: string) => void | Promise<void>,
+): void {
   ipcMain.handle(workspaceGetStatusChannel, async () =>
     workspaceStatusSchema.parse(await workspaceService.getStatus()),
   );
@@ -25,9 +28,12 @@ export function registerWorkspaceHandlers(workspaceService: WorkspaceService): v
       return workspaceSelectionResultSchema.parse({ status: 'cancelled' });
     }
 
+    const workspace = await workspaceService.initializeFromParent(result.filePaths[0]);
+    if (workspace.status === 'ready') await onWorkspaceReady?.(workspace.rootPath);
+
     return workspaceSelectionResultSchema.parse({
       status: 'selected',
-      workspace: await workspaceService.initializeFromParent(result.filePaths[0]),
+      workspace,
     });
   });
 
